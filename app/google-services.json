@@ -1,0 +1,49 @@
+{
+  "project_info": {
+    "project_number": "769352830257",
+    "firebase_url": "https://ocp-resv-default-rtdb.europe-west1.firebasedatabase.app",
+    "project_id": "ocp-resv",
+    "storage_bucket": "ocp-resv.firebasestorage.app"
+  },
+  "client": [
+    {
+      "client_info": {
+        "mobilesdk_app_id": "1:769352830257:android:c8757aea6e305581693410",
+        "android_client_info": {
+          "package_name": "com.example.hotelbooking"
+        }
+      },
+      "oauth_client": [],
+      "api_key": [
+        {
+          "current_key": "AIzaSyCJfJ6H1V8qWeLaAA4U5htFO4yLzfH1PMU"
+        }
+      ],
+      "services": {
+        "appinvite_service": {
+          "other_platform_oauth_client": []
+        }
+      }
+    },
+    {
+      "client_info": {
+        "mobilesdk_app_id": "1:769352830257:android:3d565f6121226bc9693410",
+        "android_client_info": {
+          "package_name": "com.example.reserve"
+        }
+      },
+      "oauth_client": [],
+      "api_key": [
+        {
+          "current_key": "AIzaSyCJfJ6H1V8qWeLaAA4U5htFO4yLzfH1PMU"
+        }
+      ],
+      "services": {
+        "appinvite_service": {
+          "other_platform_oauth_client": []
+        }
+      }
+    }
+  ],
+  "configuration_version": "1"
+}

@@ -1,0 +1,104 @@
+<?xml version="1.0" encoding="utf-8"?>
+<ScrollView
+    xmlns:android="http://schemas.android.com/apk/res/android"
+    xmlns:app="http://schemas.android.com/apk/res-auto"
+    xmlns:tools="http://schemas.android.com/tools"
+    android:layout_width="match_parent"
+    android:layout_height="match_parent">
+
+    <LinearLayout
+        android:layout_width="match_parent"
+        android:layout_height="wrap_content"
+        android:orientation="vertical"
+        android:padding="16dp"
+        tools:context=".AddRoomActivity">
+
+        <Button
+            android:id="@+id/backToAdminPageButton"
+            android:layout_width="wrap_content"
+            android:layout_height="wrap_content"
+            android:text="Back to Admin Page"
+            android:layout_marginBottom="16dp"
+            android:backgroundTint="#09104C"/>
+
+        <Spinner
+            android:id="@+id/hotelSpinner"
+            android:layout_width="match_parent"
+            android:layout_height="wrap_content"
+            android:minHeight="48dp"
+            android:padding="12dp"
+            android:layout_marginBottom="16dp"/>
+
+        <EditText
+            android:id="@+id/roomName"
+            android:layout_width="match_parent"
+            android:layout_height="wrap_content"
+            android:hint="Room Name"
+            android:minHeight="48dp"
+            android:layout_marginBottom="16dp"/>
+
+        <EditText
+            android:id="@+id/roomPrice"
+            android:layout_width="match_parent"
+            android:layout_height="wrap_content"
+            android:hint="Room Price"
+            android:inputType="numberDecimal"
+            android:minHeight="48dp"
+            android:layout_marginBottom="16dp"/>
+
+        <EditText
+            android:id="@+id/bedCount"
+            android:layout_width="match_parent"
+            android:layout_height="wrap_content"
+            android:hint="Bed Count"
+            android:inputType="number"
+            android:minHeight="48dp"
+            android:layout_marginBottom="16dp"/>
+
+        <Switch
+            android:id="@+id/wifiSwitch"
+            android:layout_width="match_parent"
+            android:layout_height="wrap_content"
+            android:text="WiFi Available"
+            android:minHeight="48dp"
+            android:padding="12dp"
+            android:layout_marginBottom="16dp"
+            tools:ignore="UseSwitchCompatOrMaterialXml" />
+
+        <EditText
+            android:id="@+id/bathroomCount"
+            android:layout_width="match_parent"
+            android:layout_height="wrap_content"
+            android:hint="Bathroom Count"
+            android:inputType="number"
+            android:minHeight="48dp"
+            android:layout_marginBottom="16dp"/>
+
+        <Button
+            android:id="@+id/selectImageButton"
+            android:layout_width="match_parent"
+            android:layout_height="wrap_content"
+            android:text="Select Image"
+            android:backgroundTint="#09104C"
+            app:cornerRadius="20dp"
+            android:layout_marginBottom="16dp"/>
+
+        <ImageView
+            android:id="@+id/selectedImageView"
+            android:layout_width="match_parent"
+            android:layout_height="wrap_content"
+            android:layout_marginTop="16dp"
+            android:scaleType="fitCenter"
+            android:adjustViewBounds="true"
+            android:visibility="gone"/>
+
+        <Button
+            android:id="@+id/addRoomButton"
+            android:layout_width="match_parent"
+            android:layout_height="wrap_content"
+            android:text="Add Room"
+            android:backgroundTint="#09104C"
+            android:layout_marginBottom="16dp"
+            app:cornerRadius="20dp"/>
+    </LinearLayout>
+</ScrollView>
