@@ -8,7 +8,6 @@
     android:id="@+id/splashScreen"
     android:orientation="vertical"
     android:gravity="center"
-    android:background="@drawable/background"
     tools:context=".SplashScreen">
 
     <com.google.android.material.imageview.ShapeableImageView

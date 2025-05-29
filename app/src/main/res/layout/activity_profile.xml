@@ -6,7 +6,6 @@
     android:layout_width="match_parent"
     android:layout_height="match_parent"
     android:orientation="vertical"
-    android:background="@drawable/background"
     tools:context=".ProfileActivity">
 
     <RelativeLayout
@@ -16,33 +15,32 @@
 
         <ImageView
             android:id="@+id/backButton"
-            android:layout_width="wrap_content"
-            android:layout_height="wrap_content"
+            android:layout_width="30dp"
+            android:layout_height="30dp"
             android:src="@drawable/arrow_50"
             android:contentDescription="@string/back"
-            android:layout_margin="15dp"
-            android:padding="8dp"/>
+            android:layout_margin="15dp" />
 
         <TextView
             android:layout_width="match_parent"
             android:layout_height="wrap_content"
             android:text="@string/profile"
             android:id="@+id/dashboardText"
-            android:textSize="36sp"
+            android:textSize="23sp"
             android:textAlignment="center"
             android:textStyle="bold"
-            android:textColor="@color/white"
+            android:textColor="@color/black"
             android:layout_centerInParent="true"/>
 
         <ImageView
             android:id="@+id/editButton"
-            android:layout_width="60dp"
-            android:layout_height="60dp"
+            android:layout_width="30dp"
+            android:layout_height="30dp"
             android:src="@drawable/img"
             android:contentDescription="@string/back"
             android:layout_margin="15dp"
             android:layout_alignParentEnd="true"
-            android:padding="8dp"/>
+            app:tint="@color/black" />
 
     </RelativeLayout>
 
@@ -74,7 +72,7 @@
             android:gravity="center"
             android:text="@string/name"
             android:textSize="24sp"
-            android:textColor="@color/white"/>
+            android:textColor="@color/black"/>
 
         <LinearLayout
             android:id="@+id/detailsLayout"
@@ -201,8 +199,8 @@
             android:id="@+id/LogOutButton"
             android:textSize="18sp"
             android:layout_marginTop="50dp"
-            android:backgroundTint="@color/white"
-            android:textColor="@color/black"
+            android:backgroundTint="@color/black"
+            android:textColor="@color/white"
             app:cornerRadius="20dp"
             android:layout_alignParentBottom="true"
             android:layout_centerHorizontal="true"/>

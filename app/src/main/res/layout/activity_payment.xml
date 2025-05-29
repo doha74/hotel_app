@@ -7,17 +7,15 @@
     android:layout_height="match_parent"
     android:orientation="vertical"
     android:id="@+id/paymentActivity"
-    android:background="@drawable/background"
     tools:context=".PaymentActivity">
 
 
     <ImageView
         android:id="@+id/backButton"
-        android:layout_width="wrap_content"
-        android:layout_height="wrap_content"
+        android:layout_width="30dp"
+        android:layout_height="30dp"
         android:layout_margin="25dp"
         android:contentDescription="@string/back"
-        android:padding="8dp"
         android:src="@drawable/arrow_50" />
 
     <ScrollView

@@ -2,12 +2,18 @@ package com.example.hotelbooking
 
 import android.content.Intent
 import android.os.Bundle
-import android.widget.ArrayAdapter
-import android.widget.ListView
+import android.view.LayoutInflater
+import android.view.View
+import android.view.ViewGroup
+import android.widget.TextView
+import android.widget.Toast
 import androidx.appcompat.app.AlertDialog
 import androidx.appcompat.app.AppCompatActivity
+import androidx.recyclerview.widget.LinearLayoutManager
+import androidx.recyclerview.widget.RecyclerView
 import com.bumptech.glide.Glide
 import com.example.hotelbooking.databinding.ActivityHotelPageBinding
+import com.example.hotelbooking.databinding.ItemCommentBinding
 import com.google.firebase.database.*
 import java.text.ParseException
 import java.text.SimpleDateFormat
@@ -18,9 +24,8 @@ class HotelPage : AppCompatActivity() {
     private lateinit var database: FirebaseDatabase
     private lateinit var hotelId: String
     private var rooms: List<DataSnapshot> = listOf()
-
-    private var roomListDialog: AlertDialog? = null
     private var selectedRoomId: String? = null
+    private lateinit var commentsAdapter: CommentsAdapter
 
     override fun onCreate(savedInstanceState: Bundle?) {
         super.onCreate(savedInstanceState)
@@ -29,25 +34,32 @@ class HotelPage : AppCompatActivity() {
 
         database = FirebaseDatabase.getInstance()
         hotelId = intent.getStringExtra("hotelId") ?: ""
+        setupRecyclerView()
+        setupClickListeners()
+        loadHotelData()
+    }
 
-        binding.backButton.setOnClickListener {
-            finish()
+    private fun setupRecyclerView() {
+        commentsAdapter = CommentsAdapter()
+        binding.commentsRecyclerView.apply {
+            layoutManager = LinearLayoutManager(this@HotelPage)
+            adapter = commentsAdapter
         }
+    }
 
-        binding.roomListButton.setOnClickListener {
-            showRoomsDialog()
-        }
+    private fun setupClickListeners() {
+        binding.backButton.setOnClickListener { finish() }
+
+        binding.roomListButton.setOnClickListener { showRoomsDialog() }
 
         binding.bookingNowButton.setOnClickListener {
             if (selectedRoomId != null) {
                 val selectedRoom = rooms.find { it.key == selectedRoomId }
-                val isAvailable = selectedRoom?.child("availability")?.getValue(Boolean::class.java) ?: false
-
-                if (isAvailable) {
-                    val intent = Intent(this, PaymentActivity::class.java)
-                    intent.putExtra("hotelId", hotelId)
-                    intent.putExtra("roomId", selectedRoomId)
-                    startActivity(intent)
+                if (selectedRoom?.child("availability")?.getValue(Boolean::class.java) == true) {
+                    startActivity(Intent(this, PaymentActivity::class.java).apply {
+                        putExtra("hotelId", hotelId)
+                        putExtra("roomId", selectedRoomId)
+                    })
                 } else {
                     showAvailabilityWarning()
                 }
@@ -55,163 +67,163 @@ class HotelPage : AppCompatActivity() {
                 showRoomSelectionWarning()
             }
         }
-
-        loadHotelData()
-        loadAverageRating()
-        loadComments()
     }
 
     private fun loadHotelData() {
-        val hotelRef = database.reference.child("hotels").child(hotelId)
+        database.reference.child("hotels").child(hotelId).addListenerForSingleValueEvent(
+            object : ValueEventListener {
+                override fun onDataChange(snapshot: DataSnapshot) {
+                    snapshot.child("name").getValue(String::class.java)?.let {
+                        binding.titleTxt.text = it
+                    }
+                    snapshot.child("imageUrl").getValue(String::class.java)?.let { url ->
+                        Glide.with(this@HotelPage).load(url).into(binding.picDetail)
+                    }
+                    snapshot.child("address").getValue(String::class.java)?.let {
+                        binding.addressTxt.text = it
+                    }
 
-        hotelRef.addListenerForSingleValueEvent(object : ValueEventListener {
-            override fun onDataChange(snapshot: DataSnapshot) {
-                val hotelName = snapshot.child("name").getValue(String::class.java) ?: ""
-                val hotelImageUrl = snapshot.child("imageUrl").getValue(String::class.java) ?: ""
+                    rooms = snapshot.child("rooms").children.toList()
+                    loadAverageRating()
+                    loadComments()
+                }
 
-                binding.titleTxt.text = hotelName
-                Glide.with(this@HotelPage).load(hotelImageUrl).into(binding.picDetail)
-
-                rooms = snapshot.child("rooms").children.toList()
-
-                // Set default hotel image if no room is selected
-                if (selectedRoomId == null) {
-                    Glide.with(this@HotelPage).load(hotelImageUrl).into(binding.picDetail)
+                override fun onCancelled(error: DatabaseError) {
+                    Toast.makeText(this@HotelPage, "Failed to load hotel data", Toast.LENGTH_SHORT).show()
                 }
             }
-
-            override fun onCancelled(error: DatabaseError) {
-                // Handle error
-            }
-        })
+        )
     }
 
     private fun showRoom(roomSnapshot: DataSnapshot) {
-        val roomName = roomSnapshot.child("name").getValue(String::class.java) ?: ""
-        val bathroomCount = roomSnapshot.child("bathroomCount").getValue(Int::class.java) ?: 0
-        val bedCount = roomSnapshot.child("bedCount").getValue(Int::class.java) ?: 0
-        val wifiAvailable = roomSnapshot.child("wifiAvailable").getValue(Boolean::class.java) ?: false
-        val price = roomSnapshot.child("price").getValue(Int::class.java) ?: 0
-        val roomImageUrl = roomSnapshot.child("imageUrl").getValue(String::class.java) ?: ""
+        binding.roomCard.visibility = View.VISIBLE
+        binding.roomNameTextView.text = roomSnapshot.child("name").getValue(String::class.java)
+        binding.bedCountTextView.text = "${roomSnapshot.child("bedCount").getValue(Int::class.java)} Bed"
+        binding.bathroomCountTextView.text = "${roomSnapshot.child("bathroomCount").getValue(Int::class.java)} Bath"
+        binding.wifiAvailabilityTextView.text = if (roomSnapshot.child("wifiAvailable").getValue(Boolean::class.java) == true) "WiFi" else "No WiFi"
+        binding.priceTextView.text = "$${roomSnapshot.child("price").getValue(Int::class.java)} / Month"
 
-        binding.roomNameTextView.text = roomName
-        binding.bathroomCountTextView.text = "Bathroom Count: $bathroomCount"
-        binding.bedCountTextView.text = "Bed Count: $bedCount"
-        binding.wifiAvailabilityTextView.text = "WiFi Available: ${if (wifiAvailable) "Yes" else "No"}"
-        binding.priceTextView.text = "Price: $$price"
-
-        Glide.with(this).load(roomImageUrl).into(binding.picDetail)
+        roomSnapshot.child("imageUrl").getValue(String::class.java)?.let { url ->
+            Glide.with(this).load(url).into(binding.picDetail)
+        }
     }
 
     private fun showRoomsDialog() {
         val sortedRooms = rooms.sortedBy { it.child("price").getValue(Int::class.java) ?: 0 }
-        val roomIds = sortedRooms.map { it.key }
-
-        val roomNamesAndPrices = sortedRooms.map {
-            val roomName = it.child("name").getValue(String::class.java) ?: "Unknown"
-            val price = it.child("price").getValue(Int::class.java) ?: 0
-            "$roomName - $$price"
+        val roomNames = sortedRooms.map {
+            "${it.child("name").getValue(String::class.java)} - $${it.child("price").getValue(Int::class.java)}/mo"
         }
 
-        val builder = AlertDialog.Builder(this)
-        builder.setTitle("Select a Room")
-
-        val adapter = ArrayAdapter(this, android.R.layout.simple_list_item_1, roomNamesAndPrices)
-        val listView = ListView(this)
-        listView.adapter = adapter
-
-        listView.setOnItemClickListener { _, _, position, _ ->
-            selectedRoomId = roomIds[position]
-            showRoom(sortedRooms[position])
-            roomListDialog?.dismiss()
-        }
-
-        builder.setView(listView)
-        roomListDialog = builder.create()
-        roomListDialog?.show()
+        AlertDialog.Builder(this)
+            .setTitle("Select a Room")
+            .setItems(roomNames.toTypedArray()) { _, position ->
+                selectedRoomId = sortedRooms[position].key
+                showRoom(sortedRooms[position])
+            }
+            .setNegativeButton("Cancel", null)
+            .show()
     }
 
     private fun loadAverageRating() {
-        val commentsRef = database.reference.child("comments").orderByChild("hotelId").equalTo(hotelId)
+        database.reference.child("comments")
+            .orderByChild("hotelId").equalTo(hotelId)
+            .addValueEventListener(object : ValueEventListener {
+                override fun onDataChange(snapshot: DataSnapshot) {
+                    val (totalRating, count) = snapshot.children.fold(0.0 to 0) { (sum, cnt), comment ->
+                        (sum + (comment.child("rating").getValue(Double::class.java) ?: 0.0)) to (cnt + 1)
+                    }
 
-        commentsRef.addValueEventListener(object : ValueEventListener {
-            override fun onDataChange(snapshot: DataSnapshot) {
-                var totalRating = 0.0
-                var ratingCount = 0
-
-                for (commentSnapshot in snapshot.children) {
-                    val rating = commentSnapshot.child("rating").getValue(Double::class.java) ?: 0.0
-                    totalRating += rating
-                    ratingCount++
+                    binding.averageRatingTextView.text = when {
+                        count > 0 -> "★ ${String.format("%.1f", totalRating / count)} ($count reviews)"
+                        else -> "No reviews yet"
+                    }
                 }
 
-                if (ratingCount > 0) {
-                    val averageRating = totalRating / ratingCount
-                    binding.averageRatingTextView.text = "Average Rating: %.1f".format(averageRating)
-                } else {
-                    binding.averageRatingTextView.text = "Average Rating: N/A"
+                override fun onCancelled(error: DatabaseError) {
+                    binding.averageRatingTextView.text = "Rating unavailable"
                 }
-            }
-
-            override fun onCancelled(error: DatabaseError) {
-                // Handle error
-            }
-        })
+            })
     }
 
     private fun loadComments() {
-        val hotelCommentsRef = database.reference.child("hotels").child(hotelId).child("comments")
+        database.reference.child("hotels").child(hotelId).child("comments")
+            .addListenerForSingleValueEvent(object : ValueEventListener {
+                override fun onDataChange(snapshot: DataSnapshot) {
+                    val commentIds = snapshot.children.mapNotNull { it.key }
+                    if (commentIds.isEmpty()) {
+                        commentsAdapter.submitList(emptyList())
+                        return
+                    }
 
-        hotelCommentsRef.addListenerForSingleValueEvent(object : ValueEventListener {
-            override fun onDataChange(snapshot: DataSnapshot) {
-                val commentIds = snapshot.children.map { it.key ?: "" }
+                    database.reference.child("comments").addListenerForSingleValueEvent(
+                        object : ValueEventListener {
+                            override fun onDataChange(commentsSnapshot: DataSnapshot) {
+                                val comments = commentIds.mapNotNull { id ->
+                                    commentsSnapshot.child(id).let { comment ->
+                                        val rating = comment.child("rating").getValue(Double::class.java)
+                                        val text = comment.child("commentText").getValue(String::class.java)
+                                        if (rating != null && text != null) Comment(rating, text) else null
+                                    }
+                                }
+                                commentsAdapter.submitList(comments)
+                            }
 
-                val commentsRef = database.reference.child("comments")
-
-                commentsRef.addListenerForSingleValueEvent(object : ValueEventListener {
-                    override fun onDataChange(commentsSnapshot: DataSnapshot) {
-                        val comments = mutableListOf<String>()
-                        for (commentId in commentIds) {
-                            val commentSnapshot = commentsSnapshot.child(commentId)
-                            val commentText = commentSnapshot.child("commentText").getValue(String::class.java) ?: ""
-                            val rating = commentSnapshot.child("rating").getValue(Double::class.java) ?: 0.0
-                            comments.add("Rating: $rating\nComment: $commentText")
+                            override fun onCancelled(error: DatabaseError) {
+                                commentsAdapter.submitList(emptyList())
+                            }
                         }
-                        val adapter = ArrayAdapter(this@HotelPage, android.R.layout.simple_list_item_1, comments)
-                        binding.commentsListView.adapter = adapter
-                    }
+                    )
+                }
 
-                    override fun onCancelled(error: DatabaseError) {
-                        // Handle error
-                    }
-                })
-            }
-
-            override fun onCancelled(error: DatabaseError) {
-                // Handle error
-            }
-        })
+                override fun onCancelled(error: DatabaseError) {
+                    commentsAdapter.submitList(emptyList())
+                }
+            })
     }
 
     private fun showRoomSelectionWarning() {
-        val builder = AlertDialog.Builder(this)
-        builder.setTitle("Select a Room")
+        AlertDialog.Builder(this)
+            .setTitle("Select a Room")
             .setMessage("Please select a room before booking.")
-            .setPositiveButton("OK") { dialog, _ ->
-                dialog.dismiss()
-            }
-        val dialog = builder.create()
-        dialog.show()
+            .setPositiveButton("OK", null)
+            .show()
     }
 
     private fun showAvailabilityWarning() {
-        val builder = AlertDialog.Builder(this)
-        builder.setTitle("Room Not Available")
+        AlertDialog.Builder(this)
+            .setTitle("Room Not Available")
             .setMessage("The selected room is currently not available.")
-            .setPositiveButton("OK") { dialog, _ ->
-                dialog.dismiss()
-            }
-        val dialog = builder.create()
-        dialog.show()
+            .setPositiveButton("OK", null)
+            .show()
+    }
+}
+
+data class Comment(val rating: Double, val text: String)
+
+class CommentsAdapter : RecyclerView.Adapter<CommentsAdapter.CommentViewHolder>() {
+    private var comments: List<Comment> = emptyList()
+
+    fun submitList(newComments: List<Comment>) {
+        comments = newComments
+        notifyDataSetChanged()
+    }
+
+    override fun onCreateViewHolder(parent: ViewGroup, viewType: Int): CommentViewHolder {
+        val binding = ItemCommentBinding.inflate(LayoutInflater.from(parent.context), parent, false)
+        return CommentViewHolder(binding)
+    }
+
+    override fun onBindViewHolder(holder: CommentViewHolder, position: Int) {
+        val comment = comments[position]
+        holder.bind(comment)
+    }
+
+    override fun getItemCount(): Int = comments.size
+
+    class CommentViewHolder(private val binding: ItemCommentBinding) : RecyclerView.ViewHolder(binding.root) {
+        fun bind(comment: Comment) {
+            binding.commentRatingTextView.text = "★ ${String.format("%.1f", comment.rating)}"
+            binding.commentTextView.text = comment.text
+        }
     }
 }

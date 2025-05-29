@@ -6,18 +6,16 @@
     android:layout_width="match_parent"
     android:layout_height="match_parent"
     android:orientation="vertical"
-    android:background="@drawable/background"
     tools:context=".RegisterActivity">
 
 
     <ImageView
         android:id="@+id/backButton"
-        android:layout_width="wrap_content"
-        android:layout_height="wrap_content"
+        android:layout_width="30dp"
+        android:layout_height="30dp"
         android:src="@drawable/arrow_50"
         android:contentDescription="@string/back"
-        android:layout_margin="25dp"
-        android:padding="8dp" />
+        android:layout_margin="25dp"/>
 
 
     <androidx.cardview.widget.CardView
