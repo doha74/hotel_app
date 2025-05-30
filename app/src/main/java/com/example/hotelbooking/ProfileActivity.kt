@@ -1,7 +1,6 @@
 package com.example.hotelbooking
 
 import android.content.Intent
-import android.net.Uri
 import android.os.Bundle
 import androidx.appcompat.app.AppCompatActivity
 import com.bumptech.glide.Glide
@@ -13,15 +12,6 @@ class ProfileActivity : AppCompatActivity() {
     private lateinit var binding: ActivityProfileBinding
     private lateinit var database: DatabaseReference
     private lateinit var auth: FirebaseAuth
-
-    data class User(
-        val name: String? = null,
-        val email: String? = null,
-        val postalCode: String? = null,
-        val address: String? = null,
-        val phoneNumber: String? = null,
-        val profileImageUrl: String? = null
-    )
 
     override fun onCreate(savedInstanceState: Bundle?) {
         super.onCreate(savedInstanceState)
@@ -42,7 +32,7 @@ class ProfileActivity : AppCompatActivity() {
         binding.LogOutButton.setOnClickListener {
             auth.signOut()
             startActivity(Intent(this, LoginActivity::class.java))
-            finish()
+            finishAffinity()
         }
 
         binding.bottomNavigationView.setOnNavigationItemSelectedListener { item ->
@@ -70,22 +60,38 @@ class ProfileActivity : AppCompatActivity() {
                     if (snapshot.exists()) {
                         val user = snapshot.getValue(User::class.java)
                         user?.let {
-                            binding.nameTv.text = it.name
-                            binding.emailValueTv.text = it.email
-                            binding.phoneNumberValueTv.text = it.phoneNumber
-                            binding.addressValueTv.text = it.address
-                            binding.postalCodeValueTv.text = it.postalCode
+                            binding.nameTv.text = it.name ?: "Name not set"
+                            binding.emailValueTv.text = it.email ?: "Email not set"
+                            binding.phoneNumberValueTv.text = it.phoneNumber ?: "Phone not set"
+                            binding.addressValueTv.text = it.address ?: "Address not set"
+                            binding.postalCodeValueTv.text = it.postalCode ?: "Postal code not set"
                             it.profileImageUrl?.let { imageUrl ->
                                 Glide.with(this@ProfileActivity)
                                     .load(imageUrl)
+                                    .placeholder(R.drawable.default_profile_image)
                                     .into(binding.profileImageView)
                             }
                         }
+                    } else {
+                        binding.nameTv.text = "Name not set"
+                        binding.emailValueTv.text = currentUser.email ?: "Email not set"
+                        binding.phoneNumberValueTv.text = "Phone not set"
+                        binding.addressValueTv.text = "Address not set"
+                        binding.postalCodeValueTv.text = "Postal code not set"
                     }
                 }
 
-                override fun onCancelled(error: DatabaseError) {}
+                override fun onCancelled(error: DatabaseError) {
+                    binding.nameTv.text = "Name not set"
+                    binding.emailValueTv.text = currentUser.email ?: "Email not set"
+                    binding.phoneNumberValueTv.text = "Phone not set"
+                    binding.addressValueTv.text = "Address not set"
+                    binding.postalCodeValueTv.text = "Postal code not set"
+                }
             })
+        } ?: run {
+            startActivity(Intent(this, LoginActivity::class.java))
+            finish()
         }
     }
 }

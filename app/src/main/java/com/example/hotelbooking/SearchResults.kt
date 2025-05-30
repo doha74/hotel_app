@@ -2,16 +2,20 @@ package com.example.hotelbooking
 
 import android.content.Intent
 import android.os.Bundle
+import android.view.LayoutInflater
 import android.view.View
 import android.view.ViewGroup
 import android.widget.ImageView
-import android.widget.LinearLayout
 import android.widget.TextView
 import androidx.appcompat.app.AppCompatActivity
+import androidx.recyclerview.widget.LinearLayoutManager
+import androidx.recyclerview.widget.RecyclerView
 import com.bumptech.glide.Glide
+import com.example.hotelbooking.adapters.HotelAdapter
+import com.example.hotelbooking.data.Hotel
 import com.example.hotelbooking.databinding.ActivitySearchResultsBinding
-import com.google.android.material.bottomnavigation.BottomNavigationView
 import com.google.firebase.database.*
+import java.util.*
 
 class SearchResults : AppCompatActivity() {
     private lateinit var binding: ActivitySearchResultsBinding
@@ -19,6 +23,7 @@ class SearchResults : AppCompatActivity() {
     private var searchQuery: String? = null
     private var departDate: String? = null
     private var returnDate: String? = null
+    private lateinit var hotelAdapter: HotelAdapter
 
     override fun onCreate(savedInstanceState: Bundle?) {
         super.onCreate(savedInstanceState)
@@ -26,16 +31,29 @@ class SearchResults : AppCompatActivity() {
         setContentView(binding.root)
 
         database = FirebaseDatabase.getInstance("https://ocp-resv-default-rtdb.europe-west1.firebasedatabase.app/")
-        searchQuery = intent.getStringExtra("searchQuery")?.trim()?.lowercase()
+        searchQuery = intent.getStringExtra("searchQuery")?.trim()?.lowercase(Locale.getDefault())
         departDate = intent.getStringExtra("departDate")
         returnDate = intent.getStringExtra("returnDate")
+
+        // Initialize RecyclerView
+        hotelAdapter = HotelAdapter(mutableListOf()) { hotel ->
+            val intent = Intent(this, HotelPage::class.java).apply {
+                putExtra("hotelId", hotel.id)
+                putExtra("departDate", departDate)
+                putExtra("returnDate", returnDate)
+            }
+            startActivity(intent)
+        }
+        binding.hotelRecyclerView.apply {
+            layoutManager = LinearLayoutManager(this@SearchResults)
+            adapter = hotelAdapter
+        }
 
         binding.backButton.setOnClickListener {
             finish()
         }
 
-        val bottomNavigationView = findViewById<BottomNavigationView>(R.id.bottomNavigationView)
-        bottomNavigationView?.setOnNavigationItemSelectedListener { item ->
+        binding.bottomNavigationView.setOnNavigationItemSelectedListener { item ->
             when (item.itemId) {
                 R.id.home -> {
                     startActivity(Intent(this, Dashboard::class.java))
@@ -67,133 +85,19 @@ class SearchResults : AppCompatActivity() {
                     val hotelImageUrl = hotelSnapshot.child("imageUrl").getValue(String::class.java)
 
                     if (hotelName != null && hotelLocation != null && hotelImageUrl != null) {
-                        if (searchQuery == null || hotelLocation.lowercase().contains(searchQuery!!)) {
+                        if (searchQuery.isNullOrEmpty() || hotelLocation.lowercase(Locale.getDefault()).contains(searchQuery!!)) {
                             hotelsList.add(Hotel(hotelId, hotelName, hotelLocation, hotelImageUrl))
                         }
                     }
                 }
                 hotelsList.reverse()
-                hotelsList.forEach {
-                    addHotelToLayout(it)
-                }
+                hotelAdapter.updateHotels(hotelsList)
             }
 
             override fun onCancelled(error: DatabaseError) {
-                // Handle error
+                // Handle error (e.g., show Toast)
             }
         })
     }
 
-    private fun addHotelToLayout(hotel: Hotel) {
-        val card = LinearLayout(this).apply {
-            orientation = LinearLayout.HORIZONTAL
-            setPadding(24, 24, 24, 24)
-            background = getDrawable(R.drawable.card_background)
-            elevation = 8f
-            layoutParams = LinearLayout.LayoutParams(
-                ViewGroup.LayoutParams.MATCH_PARENT,
-                ViewGroup.LayoutParams.WRAP_CONTENT
-            ).apply {
-                setMargins(0, 0, 0, 32)
-            }
-            setOnClickListener {
-                val intent = Intent(this@SearchResults, HotelPage::class.java)
-                intent.putExtra("hotelId", hotel.id)
-                intent.putExtra("departDate", departDate)
-                intent.putExtra("returnDate", returnDate)
-                startActivity(intent)
-            }
-        }
-
-        val imageView = ImageView(this).apply {
-            layoutParams = LinearLayout.LayoutParams(280, 280).apply {
-                setMargins(0, 0, 24, 0)
-            }
-            scaleType = ImageView.ScaleType.CENTER_CROP
-            contentDescription = "Image of ${hotel.name}"
-            Glide.with(this@SearchResults).load(hotel.imageUrl).into(this)
-        }
-
-        val infoLayout = LinearLayout(this).apply {
-            orientation = LinearLayout.VERTICAL
-            layoutParams = LinearLayout.LayoutParams(
-                0,
-                ViewGroup.LayoutParams.WRAP_CONTENT,
-                1f
-            )
-        }
-
-        val nameView = TextView(this).apply {
-            text = hotel.name
-            textSize = 18f
-            setTypeface(null, android.graphics.Typeface.BOLD)
-            setPadding(0, 0, 0, 8)
-        }
-
-        val locationView = TextView(this).apply {
-            text = hotel.location
-            textSize = 14f
-            setPadding(0, 0, 0, 8)
-        }
-
-        val cheapestRoomPriceView = TextView(this).apply {
-            text = "Cheapest room: $0"
-            textSize = 16f
-            setTextColor(android.graphics.Color.parseColor("#388E3C"))
-            setTypeface(null, android.graphics.Typeface.BOLD)
-        }
-
-        infoLayout.addView(nameView)
-        infoLayout.addView(locationView)
-        infoLayout.addView(cheapestRoomPriceView)
-
-        card.addView(imageView)
-        card.addView(infoLayout)
-
-        binding.hotelListContainer.addView(card)
-
-        loadCheapestRoomPrice(hotel.id, cheapestRoomPriceView)
-    }
-
-    private fun loadCheapestRoomPrice(hotelId: String, cheapestRoomPriceView: TextView) {
-        database.reference.child("hotels").child(hotelId).child("rooms")
-            .addListenerForSingleValueEvent(object : ValueEventListener {
-                override fun onDataChange(snapshot: DataSnapshot) {
-                    var cheapestPrice = Long.MAX_VALUE
-                    for (roomSnapshot in snapshot.children) {
-                        try {
-                            val roomPriceLong = roomSnapshot.child("price").getValue(Long::class.java)
-                            roomPriceLong?.let {
-                                if (it < cheapestPrice) {
-                                    cheapestPrice = it
-                                }
-                            }
-                        } catch (e: Exception) {
-                            val roomPriceString = roomSnapshot.child("price").getValue(String::class.java)
-                            roomPriceString?.toLongOrNull()?.let {
-                                if (it < cheapestPrice) {
-                                    cheapestPrice = it
-                                }
-                            }
-                        }
-                    }
-                    if (cheapestPrice != Long.MAX_VALUE) {
-                        cheapestRoomPriceView.text = "Cheapest room: $${cheapestPrice.toDouble()}"
-                    } else {
-                        cheapestRoomPriceView.text = "Price not available"
-                    }
-                }
-
-                override fun onCancelled(error: DatabaseError) {
-                    // Handle error
-                }
-            })
-    }
-
-    data class Hotel(
-        val id: String = "",
-        val name: String = "",
-        val location: String = "",
-        val imageUrl: String = ""
-    )
 }

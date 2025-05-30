@@ -24,8 +24,7 @@ class Dashboard : AppCompatActivity() {
             finish()
         }
 
-        val bottomNavigationView = findViewById<BottomNavigationView>(R.id.bottomNavigationView)
-        bottomNavigationView?.setOnNavigationItemSelectedListener { item ->
+        binding.bottomNavigationView.setOnNavigationItemSelectedListener { item ->
             when (item.itemId) {
                 R.id.home -> true
                 R.id.myTrips -> {
@@ -48,7 +47,6 @@ class Dashboard : AppCompatActivity() {
             }
         }
 
-        // Dönüş tarihi için DatePicker
         binding.returnOn.setOnClickListener {
             showDatePicker { date ->
                 binding.returnOn.setText(date)
@@ -57,13 +55,17 @@ class Dashboard : AppCompatActivity() {
         }
 
         binding.searchButton.setOnClickListener {
-            val city = binding.city.text.toString()
-            val intent = Intent(this, SearchResults::class.java).apply {
-                putExtra("searchQuery", city)
-                putExtra("departDate", departDate)
-                putExtra("returnDate", returnDate)
+            val city = binding.city.text.toString().trim()
+            if (city.isNotEmpty()) {
+                val intent = Intent(this, SearchResults::class.java).apply {
+                    putExtra("searchQuery", city)
+                    putExtra("departDate", departDate)
+                    putExtra("returnDate", returnDate)
+                }
+                startActivity(intent)
+            } else {
+                binding.city.error = "Please enter a city"
             }
-            startActivity(intent)
         }
     }
 
@@ -78,6 +80,7 @@ class Dashboard : AppCompatActivity() {
             onDateSet(selectedDate)
         }, year, month, day)
 
+        datePickerDialog.datePicker.minDate = calendar.timeInMillis
         datePickerDialog.show()
     }
 }

@@ -6,16 +6,14 @@ import android.widget.Toast
 import androidx.appcompat.app.AppCompatActivity
 import com.example.hotelbooking.databinding.ActivityPaymentBinding
 import com.google.firebase.auth.FirebaseAuth
-import com.google.firebase.auth.FirebaseUser
 import com.google.firebase.database.FirebaseDatabase
 
 class PaymentActivity : AppCompatActivity() {
     private lateinit var binding: ActivityPaymentBinding
     private lateinit var database: FirebaseDatabase
     private lateinit var auth: FirebaseAuth
-    private lateinit var currentUser: FirebaseUser
-    private lateinit var hotelId: String
-    private lateinit var roomId: String
+    private var hotelId: String? = null
+    private var roomId: String? = null
     private var departDate: String? = null
     private var returnDate: String? = null
 
@@ -26,26 +24,77 @@ class PaymentActivity : AppCompatActivity() {
 
         database = FirebaseDatabase.getInstance()
         auth = FirebaseAuth.getInstance()
-        currentUser = auth.currentUser!!
+
+        if (auth.currentUser == null) {
+            startActivity(Intent(this, LoginActivity::class.java))
+            finish()
+            return
+        }
+
+        hotelId = intent.getStringExtra("hotelId")
+        roomId = intent.getStringExtra("roomId")
+        departDate = intent.getStringExtra("departDate")
+        returnDate = intent.getStringExtra("returnDate")
+
+        if (hotelId.isNullOrEmpty() || roomId.isNullOrEmpty()) {
+            Toast.makeText(this, "Invalid booking details", Toast.LENGTH_SHORT).show()
+            finish()
+            return
+        }
 
         binding.backButton.setOnClickListener {
             finish()
         }
 
-        binding.payButton.setOnClickListener {
-            saveBookingToDatabase()
+        binding.bottomNavigationView.setOnNavigationItemSelectedListener { item ->
+            when (item.itemId) {
+                R.id.home -> {
+                    startActivity(Intent(this, Dashboard::class.java))
+                    true
+                }
+                R.id.myTrips -> {
+                    startActivity(Intent(this, MyTripsActivity::class.java))
+                    true
+                }
+                R.id.profile -> {
+                    startActivity(Intent(this, ProfileActivity::class.java))
+                    true
+                }
+                else -> false
+            }
         }
 
-        hotelId = intent.getStringExtra("hotelId") ?: ""
-        roomId = intent.getStringExtra("roomId") ?: ""
-        departDate = intent.getStringExtra("departDate")
-        returnDate = intent.getStringExtra("returnDate")
+        binding.payButton.setOnClickListener {
+            validateAndSaveBooking()
+        }
     }
 
-    private fun saveBookingToDatabase() {
-        val userId = currentUser.uid
+    private fun validateAndSaveBooking() {
+        val cardNumber = binding.cardNumberInput.text.toString().trim()
+        val cardHolder = binding.cardHolderInput.text.toString().trim()
+        val expiryDate = binding.expiryDateInput.text.toString().trim()
+        val cvv = binding.cvvInput.text.toString().trim()
+
+        if (cardNumber.length != 16) {
+            binding.cardNumberInputLayout.error = "Enter a valid 16-digit card number"
+            return
+        }
+        if (cardHolder.isEmpty()) {
+            binding.cardHolderInputLayout.error = "Enter cardholder name"
+            return
+        }
+        if (!expiryDate.matches(Regex("\\d{2}/\\d{2}"))) {
+            binding.expiryDateInputLayout.error = "Enter valid expiry date (MM/YY)"
+            return
+        }
+        if (cvv.length != 3) {
+            binding.cvvInputLayout.error = "Enter a valid 3-digit CVV"
+            return
+        }
+
+        val userId = auth.currentUser!!.uid
         val bookingsRef = database.reference.child("bookings")
-        val bookingId = bookingsRef.push().key ?: ""
+        val bookingId = bookingsRef.push().key ?: return
 
         val bookingData = hashMapOf(
             "userId" to userId,
@@ -53,7 +102,8 @@ class PaymentActivity : AppCompatActivity() {
             "roomId" to roomId,
             "departDate" to (departDate ?: ""),
             "returnDate" to (returnDate ?: ""),
-            "active" to true
+            "active" to true,
+            "cardLastFour" to cardNumber.takeLast(4)
         )
 
         bookingsRef.child(bookingId).setValue(bookingData)
@@ -61,15 +111,15 @@ class PaymentActivity : AppCompatActivity() {
                 updateRoomAvailability()
             }
             .addOnFailureListener { e ->
-                Toast.makeText(this, "Booking Failed: ${e.message}", Toast.LENGTH_SHORT).show()
+                Toast.makeText(this, "Booking failed: ${e.message}", Toast.LENGTH_SHORT).show()
             }
     }
 
     private fun updateRoomAvailability() {
-        val roomRef = database.reference.child("hotels").child(hotelId).child("rooms").child(roomId)
+        val roomRef = database.reference.child("hotels").child(hotelId!!).child("rooms").child(roomId!!)
         roomRef.child("availability").setValue(false)
             .addOnSuccessListener {
-                Toast.makeText(this, "Booking Successful!", Toast.LENGTH_SHORT).show()
+                Toast.makeText(this, "Booking successful!", Toast.LENGTH_SHORT).show()
                 val intent = Intent(this, MyTripsActivity::class.java)
                 startActivity(intent)
                 finish()

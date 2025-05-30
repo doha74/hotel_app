@@ -25,10 +25,10 @@ class RegisterActivity : AppCompatActivity() {
         }
 
         binding.registerButton.setOnClickListener {
-            val name = binding.name.text.toString()
-            val email = binding.email.text.toString()
-            val password = binding.password.text.toString()
-            val confirmPassword = binding.confirmPassword.text.toString()
+            val name = binding.name.text.toString().trim()
+            val email = binding.email.text.toString().trim()
+            val password = binding.password.text.toString().trim()
+            val confirmPassword = binding.confirmPassword.text.toString().trim()
 
             if (name.isNotEmpty() && email.isNotEmpty() &&
                 password.isNotEmpty() && confirmPassword.isNotEmpty()) {

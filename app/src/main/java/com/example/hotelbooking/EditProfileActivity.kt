@@ -1,12 +1,16 @@
 package com.example.hotelbooking
 
+import android.Manifest
 import android.content.Intent
+import android.content.pm.PackageManager
 import android.net.Uri
 import android.os.Bundle
 import android.provider.MediaStore
 import android.widget.Toast
 import androidx.activity.result.contract.ActivityResultContracts
 import androidx.appcompat.app.AppCompatActivity
+import androidx.core.content.ContextCompat
+import com.bumptech.glide.Glide
 import com.example.hotelbooking.databinding.ActivityEditProfileBinding
 import com.google.firebase.auth.FirebaseAuth
 import com.google.firebase.auth.FirebaseUser
@@ -22,14 +26,16 @@ class EditProfileActivity : AppCompatActivity() {
     private var selectedImageUri: Uri? = null
     private lateinit var storage: FirebaseStorage
 
-    data class User(
-        val name: String? = null,
-        val email: String? = null,
-        val phoneNumber: String? = null,
-        val address: String? = null,
-        val postalCode: String? = null,
-        val profileImageUrl: String? = null
-    )
+
+    private val requestPermissionLauncher = registerForActivityResult(
+        ActivityResultContracts.RequestPermission()
+    ) { isGranted: Boolean ->
+        if (isGranted) {
+            openImageChooser()
+        } else {
+            Toast.makeText(this, "Permission denied to access storage", Toast.LENGTH_SHORT).show()
+        }
+    }
 
     override fun onCreate(savedInstanceState: Bundle?) {
         super.onCreate(savedInstanceState)
@@ -41,31 +47,16 @@ class EditProfileActivity : AppCompatActivity() {
         database = FirebaseDatabase.getInstance().reference
         storage = FirebaseStorage.getInstance()
 
-        currentUser?.let { user ->
-            val userId = user.uid
-            database.child("users").child(userId).addListenerForSingleValueEvent(object : ValueEventListener {
-                override fun onDataChange(snapshot: DataSnapshot) {
-                    if (snapshot.exists()) {
-                        val user = snapshot.getValue(User::class.java)
-                        user?.let {
-                            binding.nameEditText.setText(it.name)
-                            binding.emailEditText.setText(it.email)
-                            binding.phoneNumberEditText.setText(it.phoneNumber)
-                            binding.addressEditText.setText(it.address)
-                            binding.postalCodeEditText.setText(it.postalCode)
-                            it.profileImageUrl?.let { imageUrl ->
-                                binding.profileImageButton.setImageURI(Uri.parse(imageUrl))
-                            }
-                        }
-                    }
-                }
-
-                override fun onCancelled(error: DatabaseError) {}
-            })
+        if (currentUser == null) {
+            startActivity(Intent(this, LoginActivity::class.java))
+            finish()
+            return
         }
 
-        binding.profileImageButton.setOnClickListener {
-            openImageChooser()
+        loadUserData()
+
+        binding.profileImageView.setOnClickListener {
+            checkStoragePermission()
         }
 
         binding.saveButton.setOnClickListener {
@@ -77,6 +68,47 @@ class EditProfileActivity : AppCompatActivity() {
         }
     }
 
+    private fun loadUserData() {
+        currentUser?.let { user ->
+            val userId = user.uid
+            database.child("users").child(userId).addListenerForSingleValueEvent(object : ValueEventListener {
+                override fun onDataChange(snapshot: DataSnapshot) {
+                    if (snapshot.exists()) {
+                        val user = snapshot.getValue(User::class.java)
+                        user?.let {
+                            binding.nameInput.setText(it.name)
+                            binding.emailInput.setText(it.email)
+                            binding.phoneInput.setText(it.phoneNumber)
+                            binding.addressInput.setText(it.address)
+                            binding.postalCodeInput.setText(it.postalCode)
+                            it.profileImageUrl?.let { imageUrl ->
+                                Glide.with(this@EditProfileActivity)
+                                    .load(imageUrl)
+                                    .placeholder(R.drawable.default_profile_image)
+                                    .into(binding.profileImageView)
+                            }
+                        }
+                    }
+                }
+
+                override fun onCancelled(error: DatabaseError) {
+                    Toast.makeText(this@EditProfileActivity, "Failed to load profile: ${error.message}", Toast.LENGTH_SHORT).show()
+                }
+            })
+        }
+    }
+
+    private fun checkStoragePermission() {
+        when {
+            ContextCompat.checkSelfPermission(this, Manifest.permission.READ_EXTERNAL_STORAGE) == PackageManager.PERMISSION_GRANTED -> {
+                openImageChooser()
+            }
+            else -> {
+                requestPermissionLauncher.launch(Manifest.permission.READ_EXTERNAL_STORAGE)
+            }
+        }
+    }
+
     private fun openImageChooser() {
         val intent = Intent(Intent.ACTION_PICK, MediaStore.Images.Media.EXTERNAL_CONTENT_URI)
         resultLauncher.launch(intent)
@@ -85,65 +117,83 @@ class EditProfileActivity : AppCompatActivity() {
     private val resultLauncher =
         registerForActivityResult(ActivityResultContracts.StartActivityForResult()) { result ->
             if (result.resultCode == RESULT_OK && result.data != null) {
-                val imageData = result.data!!.data
-                imageData?.let {
-                    selectedImageUri = it
-                    binding.profileImageButton.setImageURI(selectedImageUri)
+                selectedImageUri = result.data?.data
+                selectedImageUri?.let {
+                    Glide.with(this)
+                        .load(it)
+                        .placeholder(R.drawable.default_profile_image)
+                        .into(binding.profileImageView)
                 }
             }
         }
 
     private fun saveChanges() {
+        val name = binding.nameInput.text.toString().trim()
+        val email = binding.emailInput.text.toString().trim()
+        val phoneNumber = binding.phoneInput.text.toString().trim()
+        val address = binding.addressInput.text.toString().trim()
+        val postalCode = binding.postalCodeInput.text.toString().trim()
+
+        if (name.isEmpty() || email.isEmpty()) {
+            Toast.makeText(this, "Name and email are required", Toast.LENGTH_SHORT).show()
+            return
+        }
+
         currentUser?.let { user ->
             val userId = user.uid
-
-            val name = binding.nameEditText.text.toString()
-            val email = binding.emailEditText.text.toString()
-            val phoneNumber = binding.phoneNumberEditText.text.toString()
-            val address = binding.addressEditText.text.toString()
-            val postalCode = binding.postalCodeEditText.text.toString()
-
-            val userUpdates = mapOf<String, Any>(
-                "/users/$userId/name" to name,
-                "/users/$userId/email" to email,
-                "/users/$userId/phoneNumber" to phoneNumber,
-                "/users/$userId/address" to address,
-                "/users/$userId/postalCode" to postalCode
+            val userUpdates = mapOf(
+                "name" to name,
+                "email" to email,
+                "phoneNumber" to phoneNumber,
+                "address" to address,
+                "postalCode" to postalCode
             )
-            database.updateChildren(userUpdates)
+
+            database.child("users").child(userId).updateChildren(userUpdates)
                 .addOnSuccessListener {
                     if (selectedImageUri != null) {
                         uploadImage(selectedImageUri!!, userId)
                     } else {
+                        Toast.makeText(this, "Profile updated successfully", Toast.LENGTH_SHORT).show()
                         finish()
                     }
                 }
-                .addOnFailureListener {
-                    // Güncelleme başarısız
+                .addOnFailureListener { e ->
+                    Toast.makeText(this, "Failed to update profile: ${e.message}", Toast.LENGTH_SHORT).show()
                 }
+
+            if (email != user.email) {
+                user.updateEmail(email)
+                    .addOnSuccessListener {
+                        // Email updated in Firebase Auth
+                    }
+                    .addOnFailureListener { e ->
+                        Toast.makeText(this, "Failed to update email: ${e.message}", Toast.LENGTH_SHORT).show()
+                    }
+            }
         }
     }
 
     private fun uploadImage(imageUri: Uri, userId: String) {
         val storageRef = storage.reference
-        val imagesRef = storageRef.child("images/${UUID.randomUUID()}")
+        val imagesRef = storageRef.child("images/$userId/${UUID.randomUUID()}")
         val uploadTask = imagesRef.putFile(imageUri)
 
-        uploadTask.addOnSuccessListener { _ ->
+        uploadTask.addOnSuccessListener {
             imagesRef.downloadUrl.addOnSuccessListener { uri ->
                 val downloadUrl = uri.toString()
                 database.child("users").child(userId).child("profileImageUrl")
                     .setValue(downloadUrl)
                     .addOnSuccessListener {
-                        Toast.makeText(this, "Image uploaded successfully", Toast.LENGTH_SHORT).show()
+                        Toast.makeText(this, "Profile updated successfully", Toast.LENGTH_SHORT).show()
                         finish()
                     }
-                    .addOnFailureListener {
-                        // Hata durumunda
+                    .addOnFailureListener { e ->
+                        Toast.makeText(this, "Failed to update image: ${e.message}", Toast.LENGTH_SHORT).show()
                     }
             }
-        }.addOnFailureListener {
-            // Hata durumunda
+        }.addOnFailureListener { e ->
+            Toast.makeText(this, "Failed to upload image: ${e.message}", Toast.LENGTH_SHORT).show()
         }
     }
 }

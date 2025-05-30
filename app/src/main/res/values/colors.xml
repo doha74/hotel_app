@@ -11,4 +11,7 @@
     <color name="background_light">#F5F5F5</color>
     <color name="gray">#757575</color>
     <color name="light_gray">#E0E0E0</color>
+    <color name="primary_color">#1E88E5</color>
+    <color name="secondary_color">#64B5F6</color>
+    <color name="primary_text">#212121</color>
 </resources>
